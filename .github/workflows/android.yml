@@ -1,0 +1,263 @@
+name: Build AuryxBrowser APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create project structure
+        run: |
+          mkdir -p app/src/main/java/com/xdustatom/auryxbrowser
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p gradle/wrapper
+
+      - name: settings.gradle
+        run: |
+          cat <<EOF > settings.gradle
+          rootProject.name = "AuryxBrowser"
+          include(":app")
+          EOF
+
+      - name: Root build.gradle
+        run: |
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+      - name: App build.gradle
+        run: |
+          cat <<EOF > app/build.gradle
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+
+          android {
+              namespace "com.xdustatom.auryxbrowser"
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId "com.xdustatom.auryxbrowser"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 120801
+                  versionName "1.208.01"
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+          }
+
+          dependencies {
+              implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+              implementation "androidx.webkit:webkit:1.9.0"
+          }
+          EOF
+
+      - name: AndroidManifest.xml
+        run: |
+          cat <<EOF > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.xdustatom.auryxbrowser">
+
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+              <uses-feature
+                  android:name="android.software.leanback"
+                  android:required="true"/>
+
+              <application
+                  android:label="AuryxBrowser"
+                  android:theme="@style/Theme.AuryxBrowser"
+                  android:usesCleartextTraffic="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+
+              </application>
+          </manifest>
+          EOF
+
+      - name: styles.xml
+        run: |
+          cat <<EOF > app/src/main/res/values/styles.xml
+          <resources>
+              <style name="Theme.AuryxBrowser" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
+          </resources>
+          EOF
+
+      - name: Layout
+        run: |
+          cat <<EOF > app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="#000000">
+
+              <LinearLayout
+                  android:orientation="horizontal"
+                  android:layout_width="match_parent"
+                  android:layout_height="56dp"
+                  android:background="#111111">
+
+                  <Button
+                      android:id="@+id/btnBack"
+                      android:layout_width="56dp"
+                      android:layout_height="match_parent"
+                      android:text="◀"
+                      android:focusable="true"/>
+
+                  <Button
+                      android:id="@+id/btnForward"
+                      android:layout_width="56dp"
+                      android:layout_height="match_parent"
+                      android:text="▶"
+                      android:focusable="true"/>
+
+                  <Button
+                      android:id="@+id/btnReload"
+                      android:layout_width="56dp"
+                      android:layout_height="match_parent"
+                      android:text="⟳"
+                      android:focusable="true"/>
+
+                  <EditText
+                      android:id="@+id/urlBar"
+                      android:layout_width="0dp"
+                      android:layout_height="match_parent"
+                      android:layout_weight="1"
+                      android:hint="https://"
+                      android:singleLine="true"
+                      android:inputType="textUri"
+                      android:focusable="true"/>
+
+                  <Button
+                      android:id="@+id/btnGo"
+                      android:layout_width="56dp"
+                      android:layout_height="match_parent"
+                      android:text="GO"
+                      android:focusable="true"/>
+              </LinearLayout>
+
+              <WebView
+                  android:id="@+id/webView"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"/>
+          </LinearLayout>
+          EOF
+
+      - name: MainActivity
+        run: |
+          cat <<EOF > app/src/main/java/com/xdustatom/auryxbrowser/MainActivity.kt
+          package com.xdustatom.auryxbrowser
+
+          import android.app.Activity
+          import android.os.Bundle
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import android.widget.Button
+          import android.widget.EditText
+          import android.view.inputmethod.EditorInfo
+
+          class MainActivity : Activity() {
+
+              private lateinit var webView: WebView
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+
+                  webView = findViewById(R.id.webView)
+                  val urlBar = findViewById<EditText>(R.id.urlBar)
+                  val btnBack = findViewById<Button>(R.id.btnBack)
+                  val btnForward = findViewById<Button>(R.id.btnForward)
+                  val btnReload = findViewById<Button>(R.id.btnReload)
+                  val btnGo = findViewById<Button>(R.id.btnGo)
+
+                  webView.settings.javaScriptEnabled = true
+                  webView.settings.domStorageEnabled = true
+                  webView.settings.useWideViewPort = true
+                  webView.settings.loadWithOverviewMode = true
+                  webView.webViewClient = WebViewClient()
+
+                  webView.loadUrl("https://www.google.com")
+
+                  btnBack.setOnClickListener { if (webView.canGoBack()) webView.goBack() }
+                  btnForward.setOnClickListener { if (webView.canGoForward()) webView.goForward() }
+                  btnReload.setOnClickListener { webView.reload() }
+                  btnGo.setOnClickListener { load(urlBar.text.toString()) }
+
+                  urlBar.setOnEditorActionListener { _, actionId, _ ->
+                      if (actionId == EditorInfo.IME_ACTION_GO) {
+                          load(urlBar.text.toString())
+                          true
+                      } else false
+                  }
+              }
+
+              private fun load(input: String) {
+                  val url =
+                      if (input.startsWith("http://") || input.startsWith("https://"))
+                          input
+                      else
+                          "https://www.google.com/search?q=" + input.replace(" ", "+")
+                  webView.loadUrl(url)
+              }
+          }
+          EOF
+
+      - name: Gradle wrapper
+        run: |
+          curl -L https://services.gradle.org/distributions/gradle-8.4-bin.zip -o gradle.zip
+          unzip gradle.zip
+          mv gradle-8.4 gradle-dist
+          echo '#!/bin/bash' > gradlew
+          echo './gradle-dist/bin/gradle "$@"' >> gradlew
+          chmod +x gradlew
+
+      - name: Build APK
+        run: |
+          ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AuryxBrowser-APK
+          path: app/build/outputs/apk/release/*.apk
