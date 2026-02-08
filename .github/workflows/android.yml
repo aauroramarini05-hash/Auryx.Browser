@@ -27,6 +27,19 @@ jobs:
       - name: settings.gradle
         run: |
           cat <<EOF > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name = "AuryxBrowser"
           include(":app")
           EOF
@@ -39,11 +52,9 @@ jobs:
                   google()
                   mavenCentral()
               }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
+              dependencies {
+                  classpath "com.android.tools.build:gradle:8.2.2"
+                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22"
               }
           }
           EOF
@@ -51,10 +62,8 @@ jobs:
       - name: App build.gradle
         run: |
           cat <<EOF > app/build.gradle
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-          }
+          apply plugin: "com.android.application"
+          apply plugin: "org.jetbrains.kotlin.android"
 
           android {
               namespace "com.xdustatom.auryxbrowser"
@@ -96,8 +105,7 @@ jobs:
 
               <application
                   android:label="AuryxBrowser"
-                  android:theme="@style/Theme.AuryxBrowser"
-                  android:usesCleartextTraffic="true">
+                  android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
 
                   <activity
                       android:name=".MainActivity"
@@ -112,74 +120,24 @@ jobs:
           </manifest>
           EOF
 
-      - name: styles.xml
-        run: |
-          cat <<EOF > app/src/main/res/values/styles.xml
-          <resources>
-              <style name="Theme.AuryxBrowser" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
-          </resources>
-          EOF
-
       - name: Layout
         run: |
           cat <<EOF > app/src/main/res/layout/activity_main.xml
-          <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
               android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="#000000">
+              android:layout_height="match_parent">
 
-              <LinearLayout
-                  android:orientation="horizontal"
+              <EditText
+                  android:id="@+id/urlBar"
                   android:layout_width="match_parent"
-                  android:layout_height="56dp"
-                  android:background="#111111">
-
-                  <Button
-                      android:id="@+id/btnBack"
-                      android:layout_width="56dp"
-                      android:layout_height="match_parent"
-                      android:text="◀"
-                      android:focusable="true"/>
-
-                  <Button
-                      android:id="@+id/btnForward"
-                      android:layout_width="56dp"
-                      android:layout_height="match_parent"
-                      android:text="▶"
-                      android:focusable="true"/>
-
-                  <Button
-                      android:id="@+id/btnReload"
-                      android:layout_width="56dp"
-                      android:layout_height="match_parent"
-                      android:text="⟳"
-                      android:focusable="true"/>
-
-                  <EditText
-                      android:id="@+id/urlBar"
-                      android:layout_width="0dp"
-                      android:layout_height="match_parent"
-                      android:layout_weight="1"
-                      android:hint="https://"
-                      android:singleLine="true"
-                      android:inputType="textUri"
-                      android:focusable="true"/>
-
-                  <Button
-                      android:id="@+id/btnGo"
-                      android:layout_width="56dp"
-                      android:layout_height="match_parent"
-                      android:text="GO"
-                      android:focusable="true"/>
-              </LinearLayout>
+                  android:layout_height="48dp"
+                  android:hint="https://"/>
 
               <WebView
                   android:id="@+id/webView"
                   android:layout_width="match_parent"
-                  android:layout_height="0dp"
-                  android:layout_weight="1"/>
+                  android:layout_height="match_parent"/>
           </LinearLayout>
           EOF
 
@@ -192,53 +150,27 @@ jobs:
           import android.os.Bundle
           import android.webkit.WebView
           import android.webkit.WebViewClient
-          import android.widget.Button
           import android.widget.EditText
           import android.view.inputmethod.EditorInfo
 
           class MainActivity : Activity() {
-
-              private lateinit var webView: WebView
-
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   setContentView(R.layout.activity_main)
 
-                  webView = findViewById(R.id.webView)
+                  val webView = findViewById<WebView>(R.id.webView)
                   val urlBar = findViewById<EditText>(R.id.urlBar)
-                  val btnBack = findViewById<Button>(R.id.btnBack)
-                  val btnForward = findViewById<Button>(R.id.btnForward)
-                  val btnReload = findViewById<Button>(R.id.btnReload)
-                  val btnGo = findViewById<Button>(R.id.btnGo)
 
                   webView.settings.javaScriptEnabled = true
-                  webView.settings.domStorageEnabled = true
-                  webView.settings.useWideViewPort = true
-                  webView.settings.loadWithOverviewMode = true
                   webView.webViewClient = WebViewClient()
-
                   webView.loadUrl("https://www.google.com")
-
-                  btnBack.setOnClickListener { if (webView.canGoBack()) webView.goBack() }
-                  btnForward.setOnClickListener { if (webView.canGoForward()) webView.goForward() }
-                  btnReload.setOnClickListener { webView.reload() }
-                  btnGo.setOnClickListener { load(urlBar.text.toString()) }
 
                   urlBar.setOnEditorActionListener { _, actionId, _ ->
                       if (actionId == EditorInfo.IME_ACTION_GO) {
-                          load(urlBar.text.toString())
+                          webView.loadUrl(urlBar.text.toString())
                           true
                       } else false
                   }
-              }
-
-              private fun load(input: String) {
-                  val url =
-                      if (input.startsWith("http://") || input.startsWith("https://"))
-                          input
-                      else
-                          "https://www.google.com/search?q=" + input.replace(" ", "+")
-                  webView.loadUrl(url)
               }
           }
           EOF
